@@ -3,6 +3,7 @@ import warnings
 import numpy as np
 import tables as tb
 import matplotlib as mpl
+import scipy.optimize as opt
 from matplotlib import cm
 from matplotlib import lines
 from astropy.constants import h, c
@@ -261,10 +262,11 @@ def plotHistogramFits(file_name, res_id=None, pixel=[], axis=None):
                     axes[ind].tick_params(axis='both', which='major', labelsize=8)
                 xmin = xlim[0]
                 axes[ind].set_xlim(xlim)
+                axes[ind].set_ylim(ylim)
                 dx = xlim[1] - xlim[0]
                 dy = ylim[1] - ylim[0]
             else:
-                ylim = axes[ind].get_ylim()
+                axes[ind].set_ylim(ylim)
                 axes[ind].set_xlim(xlim)
                 xmin = xlim[0]
                 ymax = ylim[1]
@@ -341,7 +343,7 @@ def plotRHistogram(file_name, mask=None, axis=None):
                          'number of wavelengths in the solution file')
     calsoln = wave_cal.root.wavecal.calsoln.read()
     R = calsoln['R'][:, mask]
-
+    wave_cal.close()
     show = False
     if axis is None:
         fig, axis = plt.subplots()
@@ -961,9 +963,23 @@ def fitModels(model_name):
     '''
     Returns the specified fit model from a library of possible functions
     '''
+    def gaussian_and_exp(x, a, b, c, d, f, y=None, error=None, return_coefficients=False):
+        if y is None or error is None:
+            return a * np.exp(b * x) + c * np.exp(-1 / 2.0 * ((x - d) / f)**2)
+        # make coefficient matrix
+        X = np.vstack([np.exp(b * x) / error,
+                       np.exp(-1 / 2.0 * ((x - d) / f)**2) / error]).T
+        # rescale y
+        y = y / error
+        # solve for coefficinets and don't let the amplitudes be negative
+        coef, _ = opt.nnls(X, y)
+        coef = [coef[0], b, coef[1], d, f]
+        if return_coefficients:
+            return coef
+        return coef[0] * np.exp(b * x) + coef[2] * np.exp(-1 / 2.0 * ((x - d) / f)**2)
+
     if model_name == 'gaussian_and_exp':
-        fit_function = lambda x, a, b, c, d, f: \
-            a * np.exp(b * x) + c * np.exp(-1 / 2.0 * ((x - d) / f)**2)
+        fit_function = gaussian_and_exp
     elif model_name == 'gaussian':
         fit_function = lambda x, c, d, f: c * np.exp(-1 / 2.0 * ((x - d) / f)**2)
     elif model_name == 'exp':

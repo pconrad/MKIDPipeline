@@ -347,7 +347,7 @@ class WaveCal:
             for wavelength_index, wavelength in enumerate(self.wavelengths):
                 if self.logging:
                     start_time = datetime.now()
-                # pull out fits already done for this wavelength
+                pull out fits already done for this wavelength
                 fit_list = fit_data[row, column]
 
                 # load data
@@ -396,12 +396,11 @@ class WaveCal:
                         dt = str(dt) + ' s'
                         self.__logger("({0}, {1}) {2}nm: {3} : {4}"
                                       .format(row, column, wavelength,
-                                              self.flag_dict[3], dt))
+                                              self.flag_dict[flag], dt))
                     if self.verbose and wavelength_index == len(self.wavelengths) - 1:
                         self.pbar_iter += 1
                         self.pbar.update(self.pbar_iter)
                     continue
-
                 # get fit model
                 fit_function = fitModels(self.model_name)
 
@@ -450,11 +449,6 @@ class WaveCal:
             # shorter wavelengths
             fit_list = fit_data[row, column]
             fit_list = self.__reexamineFits(fit_list, row, column)
-
-            # try to fit all of the histograms at once enforcing monotonicity
-            # full_fit = self.__simultaneousFit(fit_list, row, column, vary=True)
-            # if full_fit is not None:
-            #     fit_list = full_fit
 
             fit_data[row, column] = fit_list
 
@@ -1001,8 +995,6 @@ class WaveCal:
         else:
             vary = False
         threshold = max(phase_hist['centers'])
-        exp_amplitude = (phase_hist['counts'][phase_hist['centers'] == threshold][0] /
-                         np.exp(threshold * 0.2))
 
         box = np.ones(10) / 10.0
         phase_smoothed = np.convolve(phase_hist['counts'], box, mode='same')
@@ -1011,14 +1003,12 @@ class WaveCal:
         if (gaussian_center > 1.4 * threshold):  # remember both numbers are negative
             gaussian_center = np.max([1.5 * threshold, np.min(phase_hist['centers'])])
 
-        gaussian_amplitude = 1.1 * np.max(phase_hist['counts']) / 2
         standard_deviation = 10
 
         params = lm.Parameters()
-        params.add('a', value=exp_amplitude, min=0, max=np.inf)
+        params.add('a', value=1, vary=False)
         params.add('b', value=b, min=-1, max=np.inf, vary=vary)
-        params.add('c', value=gaussian_amplitude, min=0,
-                   max=1.1 * np.max(phase_hist['counts']))
+        params.add('c', value=1, vary=False)
         params.add('d', value=gaussian_center, min=np.min(phase_hist['centers']), max=0)
         params.add('f', value=standard_deviation, min=0.1, max=np.inf)
 
@@ -1035,19 +1025,14 @@ class WaveCal:
         else:
             vary = False
         # values derived from last wavelength
-        exp_amplitude = recent_fit[1][0]
         gaussian_center = (recent_fit[1][3] * self.wavelengths[recent_index] /
                            self.wavelengths[wavelength_index])
         standard_deviation = recent_fit[1][4]
 
-        # values derived from data (same as __boxGuess)
-        gaussian_amplitude = 1.1 * np.max(phase_hist['counts']) / 2
-
         params = lm.Parameters()
-        params.add('a', value=exp_amplitude, min=0, max=np.inf)
+        params.add('a', value=1, vary=False)
         params.add('b', value=b, min=-1, max=np.inf, vary=vary)
-        params.add('c', value=gaussian_amplitude, min=0,
-                   max=1.1 * np.max(phase_hist['counts']))
+        params.add('c', value=1, vary=False)
         params.add('d', value=gaussian_center, min=np.min(phase_hist['centers']), max=0)
         params.add('f', value=standard_deviation, min=0.1, max=np.inf)
 
@@ -1066,17 +1051,14 @@ class WaveCal:
         centers = phase_hist['centers']
         counts = phase_hist['counts']
         gaussian_center = (np.min(centers) + np.max(centers)) / 2
-        gaussian_amplitude = (np.min(counts) + np.max(counts)) / 2
-        exp_amplitude = 0
 
         # old values (same as __boxGuess)
         standard_deviation = 10
 
         params = lm.Parameters()
-        params.add('a', value=exp_amplitude, min=0, max=np.inf)
+        params.add('a', value=1, vary=False)
         params.add('b', value=b, min=-1, max=np.inf, vary=vary)
-        params.add('c', value=gaussian_amplitude, min=0,
-                   max=1.1 * np.max(phase_hist['counts']))
+        params.add('c', value=1, vary=False)
         params.add('d', value=gaussian_center, min=np.min(phase_hist['centers']), max=0)
         params.add('f', value=standard_deviation, min=0.1, max=np.inf)
 
@@ -1087,29 +1069,22 @@ class WaveCal:
         Hard coded numbers used as guess parameters
         '''
         if attempt == 0:
-            a = 0
             b = 0.2
-            c = min([1000, 1.1 * np.max(phase_hist['counts'])])
             d = max([-80, np.min(phase_hist['centers'])])
             f = 6
         elif attempt == 1:
-            a = 1e7
             b = 0.2
-            c = min([3e3, 1.1 * np.max(phase_hist['counts'])])
             d = max([-90, np.min(phase_hist['centers'])])
             f = 15
         elif attempt == 2:
-            a = 4e6
             b = 0.15
-            c = min([1000, 1.1 * np.max(phase_hist['counts'])])
             d = max([-80, np.min(phase_hist['centers'])])
             f = 10
 
         params = lm.Parameters()
-        params.add('a', value=a, min=0, max=np.inf)
+        params.add('a', value=1, vary=False)
         params.add('b', value=b, min=-1, max=np.inf)
-        params.add('c', value=c, min=0,
-                   max=1.1 * np.max(phase_hist['counts']))
+        params.add('c', value=1, vary=False)
         params.add('d', value=d, min=np.min(phase_hist['centers']), max=0)
         params.add('f', value=f, min=0.1, max=np.inf)
 
@@ -1137,29 +1112,21 @@ class WaveCal:
         else:
             shorter_ind = None
         if self.model_name == 'gaussian_and_exp':
-            a_long = fit_list[longer_ind][1][0]
             b_long = fit_list[longer_ind][1][1]
-            c_long = fit_list[longer_ind][1][2]
             d_long = fit_list[longer_ind][1][3]
             f_long = fit_list[longer_ind][1][4]
             if shorter_ind is not None:
-                a_short = fit_list[shorter_ind][1][0]
                 b_short = fit_list[shorter_ind][1][1]
-                c_short = fit_list[shorter_ind][1][2]
                 d_short = fit_list[shorter_ind][1][3]
                 f_short = fit_list[shorter_ind][1][4]
-                a = np.mean([a_short, a_long])
                 b = np.mean([b_short, b_long])
-                c = np.mean([c_short, c_long])
                 d = np.mean([d_short * self.wavelengths[wavelength_index] /
                              self.wavelengths[shorter_ind],
                              d_long * self.wavelengths[wavelength_index] /
                              self.wavelengths[longer_ind]])
                 f = np.mean([f_short, f_long])
             else:
-                a = fit_list[longer_ind][1][0]
                 b = fit_list[longer_ind][1][1]
-                c = fit_list[longer_ind][1][2]
                 d = (d_long * self.wavelengths[wavelength_index] /
                      self.wavelengths[longer_ind])
                 f = fit_list[longer_ind][1][4]
@@ -1167,10 +1134,9 @@ class WaveCal:
         else:
             raise ValueError("{0} is not a valid fit model name".format(self.model_name))
         params = lm.Parameters()
-        params.add('a', value=a, min=0, max=np.inf)
+        params.add('a', value=1, vary=False)
         params.add('b', value=b, min=-1, max=np.inf)
-        params.add('c', value=c, min=0,
-                   max=1.1 * np.max(phase_hist['counts']))
+        params.add('c', value=1, vary=False)
         params.add('d', value=d, min=np.min(phase_hist['centers']), max=0)
         params.add('f', value=f, min=0.1, max=np.inf)
 
@@ -1183,30 +1149,52 @@ class WaveCal:
         with warnings.catch_warnings():
             warnings.simplefilter("error")
             error = np.sqrt(phase_hist['counts'] + 0.25) + 0.5
-            model = lm.Model(fit_function)
+            if self.model_name == 'gaussian_and_exp':
+                model = lm.Model(fit_function, independent_vars=['x', 'y', 'error'])
             try:
                 # fit data
                 result = model.fit(phase_hist['counts'], setup, x=phase_hist['centers'],
-                                   weights=1 / error)
-                # lm fit doesn't error if covariance wasn't calculated so check here
-                # replace with gaussian width if covariance couldn't be calculated
-                if result.covar is None:
-                    if self.model_name == 'gaussian_and_exp':
-                        result.covar = np.ones((5, 5)) * result.best_values['f'] / 2
+                                   weights=1 / error, y=phase_hist['counts'], error=error)
+
                 if self.model_name == 'gaussian_and_exp':
-                    if result.covar[3, 3] == 0:
-                        result.covar = np.ones((5, 5)) * result.best_values['f'] / 2
-                # unpack results
-                if self.model_name == 'gaussian_and_exp':
-                    parameters = ['a', 'b', 'c', 'd', 'f']
-                    popt = [result.best_values[p] for p in parameters]
+                    # lm fit doesn't error if covariance wasn't calculated so check here
+                    # replace with gaussian width if covariance couldn't be calculated
+                    if result.covar is None:
+                        result.covar = np.ones((3, 3)) * result.best_values['f'] / 2
+                    # if the covariance is smaller because b was fixed add it back
+                    if 'b' not in result.var_names:
+                        result.var_names = ['b', *result.var_names]
+                        covar = np.zeros((3, 3))
+                        covar[1, 1] = result.covar[0, 0]
+                        covar[2, 2] = result.covar[1, 1]
+                        result.covar = covar
+                    # reorder covariance if variable names out of order
+                    parameters = ['b', 'd', 'f']
                     current_order = result.var_names
                     indices = []
                     for p in parameters:
                         for index, o in enumerate(current_order):
                             if p == o:
                                 indices.append(index)
-                    pcov = result.covar[indices, :][:, indices]
+                    result.covar = result.covar[indices, :][:, indices]
+                    # make sure the covariance we care about isn't zero and add in dummy
+                    # spaces for the amplitudes
+                    if result.covar[1, 1] == 0:
+                        pcov = np.ones((5, 5)) * result.best_values['f'] / 2
+                    else:
+                        covar = np.zeros((5, 5))
+                        covar[0, 0] = 0
+                        covar[1, 1] = result.covar[0, 0]
+                        covar[2, 2] = 0
+                        covar[3, 3] = result.covar[1, 1]
+                        covar[4, 4] = result.covar[2, 2]
+                        pcov = covar
+                    # unpack best fit
+                    parameters = ['a', 'b', 'c', 'd', 'f']
+                    popt = [result.best_values[p] for p in parameters]
+                    popt = fit_function(phase_hist['centers'], *popt,
+                                        y=phase_hist['counts'], error=error,
+                                        return_coefficients=True)
                 fit_result = (popt, pcov)
 
             except (RuntimeError, RuntimeWarning, ValueError) as error:
@@ -1242,7 +1230,7 @@ class WaveCal:
             if success:
                 guess = (recent_fit[1][3] * self.wavelengths[recent_index] /
                          self.wavelengths[wavelength_index])
-                peak_upper_lim = min([0.5 * guess, 1.1 * max_phase])
+                peak_upper_lim = min([0.6 * guess, 1.1 * max_phase])
 
             if fit_result[0] is False:
                 flag = 1  # fit did not converge
@@ -1255,19 +1243,31 @@ class WaveCal:
                 exp = lambda x: fitModels('exp')(x, *fit_result[0][:2])
                 c_ind = np.argmin(np.abs(centers - center))
                 c_p_ind = np.argmin(np.abs(centers - (center + sigma)))
+                c_p2_ind = np.argmin(np.abs(centers - (center + sigma / 2)))
                 c_n_ind = np.argmin(np.abs(centers - (center - sigma)))
+                c_n2_ind = np.argmin(np.abs(centers - (center - sigma / 2)))
                 c = counts[c_ind]
                 c_p = counts[c_p_ind]
+                c_p2 = counts[c_p2_ind]
                 c_n = counts[c_n_ind]
+                c_n2 = counts[c_n2_ind]
                 h = gauss(centers[c_ind]) + exp(centers[c_ind])
                 if max_phase < center + sigma:
                     h_p = gauss(max_phase) + exp(max_phase)
                 else:
                     h_p = gauss(centers[c_p_ind]) + exp(centers[c_p_ind])
+                if max_phase < center + sigma / 2:
+                    h_p2 = gauss(max_phase) + exp(max_phase)
+                else:
+                    h_p2 = gauss(centers[c_p2_ind]) + exp(centers[c_p2_ind])
                 if min_phase > center - sigma:
                     h_n = gauss(min_phase) + exp(min_phase)
                 else:
                     h_n = gauss(centers[c_n_ind]) + exp(centers[c_n_ind])
+                if min_phase > center - sigma / 2:
+                    h_n2 = gauss(min_phase) + exp(min_phase)
+                else:
+                    h_n2 = gauss(centers[c_n2_ind]) + exp(centers[c_n2_ind])
 
                 if wavelength_index == 0:
                     snr = 4
@@ -1276,19 +1276,17 @@ class WaveCal:
                 peak_lower_lim = min_phase + sigma
                 fit_quality = np.sum([np.abs(c - h) > 5 * np.sqrt(c),
                                       np.abs(c_p - h_p) > 5 * np.sqrt(c_p),
-                                      np.abs(c_n - h_n) > 5 * np.sqrt(c_n)])
+                                      np.abs(c_p2 - h_p2) > 5 * np.sqrt(c_p2),
+                                      np.abs(c_n - h_n) > 5 * np.sqrt(c_n),
+                                      np.abs(c_n2 - h_n2) > 5 * np.sqrt(c_n2)])
                 bad_fit_conditions = ((center > peak_upper_lim) or
                                       (center < peak_lower_lim) or
                                       (gauss(center) < snr * exp(center)) or
                                       (gauss(center) < 10) or
                                       np.abs(sigma) < 2 or
-                                      fit_quality >= 2 or
+                                      fit_quality >= 3 or
                                       2 * sigma > peak_upper_lim - peak_lower_lim)
-                # if wavelength_index == 0:
-                #     print(center > peak_upper_lim, center < peak_lower_lim,
-                #           gauss(center) < snr * exp(center), gauss(center) < 10,
-                #           np.abs(sigma) < 2, fit_quality >= 2,
-                #           2 * sigma > peak_upper_lim - peak_lower_lim)
+
                 if bad_fit_conditions:
                     flag = 2  # fit converged to a bad solution
                 else:
@@ -1373,170 +1371,6 @@ class WaveCal:
                 self.__logger(message.format(row, column,
                                              self.wavelengths[wavelength_index], dt))
         return fit_list
-
-    def __simultaneousFit(self, fit_list, row, column, vary=False):
-        '''
-        Try to fit all of the histograms simultaneously with the condition that the energy
-        phase relation be monotonic. The previous sucessful fits will be used as guesses.
-        If the fit fails or a single histogram fit fails evaluation, None will be
-        returned.
-        '''
-        if self.logging:
-            start_time = datetime.now()
-
-        new_fit_list = fit_list
-
-        # determine which fits worked
-        flags = np.array([fit_list[ind][0] for ind in range(len(self.wavelengths))])
-        successful = (flags == 0)
-
-        # if there are less than three good fits, nothing can be done
-        if np.sum(successful) < 3:
-            return None
-
-        # determine which fits to include in composite model
-        indices = []
-        good_fits = []
-        for index, success in enumerate(successful):
-            if success:
-                indices.append(index)
-                good_fits.append(fit_list[index])
-
-        # get fit function
-        fit_function = fitModels(self.model_name)
-
-        # initialize the parameter object
-        params = lm.Parameters()
-
-        # make the noise fall off a constant over all sets
-        if vary is False:
-            # find the average noise fall off
-            b = []
-            for ind, wavelength_index in enumerate(indices):
-                if self.model_name == 'gaussian_and_exp':
-                    b.append(fit_list[wavelength_index][1][1])
-            b = np.mean(b)
-            params.add('b', value=b, min=-1, max=np.inf, vary=False)
-
-        # add the parameters
-        for ind, wavelength_index in enumerate(indices):
-            fit_result = new_fit_list[wavelength_index][1]
-            phase_hist = new_fit_list[wavelength_index][3]
-            prefix = 'm' + str(ind) + '_'
-            if self.model_name == 'gaussian_and_exp':
-                params.add(prefix + 'a', value=fit_result[0], min=0, max=np.inf)
-                if vary:
-                    params.add(prefix + 'b', value=fit_result[1], min=-1, max=np.inf)
-                params.add(prefix + 'c', value=fit_result[2], min=0,
-                           max=1.1 * np.max(phase_hist['counts']))
-                params.add(prefix + 'f', value=fit_result[4], min=0.1, max=np.inf)
-                if ind == 0:
-                    params.add(prefix + 'd', value=fit_result[3],
-                               min=np.min(phase_hist['centers']), max=0)
-                else:
-                    previous_fit = new_fit_list[indices[ind - 1]][1]
-                    delta = previous_fit[3] - fit_result[3]
-                    # move delta to 0 if not monotonic
-                    if delta > 0:
-                        if ind < len(indices) - 1:
-                            next_fit = new_fit_list[indices[ind + 1]][1]
-                            e1 = 1 / self.wavelengths[indices[ind - 1]]
-                            p1 = previous_fit[3]
-                            e2 = 1 / self.wavelengths[indices[ind + 1]]
-                            p2 = next_fit[3]
-                            e0 = 1 / self.wavelengths[wavelength_index]
-                            new_fit_list[wavelength_index][1][3] = ((p2 - p1) / (e2 - e1)
-                                                                    * (e0 - e1)) + p1
-                            delta = previous_fit[3] - new_fit_list[wavelength_index][1][3]
-                        else:
-                            new_fit_list[wavelength_index][1][3] = previous_fit[3] * 0.95
-                            delta = 0.05 * previous_fit[3]
-                    previous_prefix = 'm' + str(ind - 1) + '_'
-                    params.add(previous_prefix + 'delta', value=delta, min=fit_result[3],
-                               max=0)
-                    expression = previous_prefix + 'd -' + previous_prefix + 'delta'
-                    params.add(prefix + 'd', expr=expression)
-        # try to fit
-        try:
-            result = lm.minimize(self.__histogramChi2, params, method='leastsq',
-                                 args=(good_fits, fit_function, vary))
-
-            # exit if fit failed
-            if result.success is False:
-                return None
-
-            # loop through output fits
-            for ind, wavelength_index in enumerate(indices):
-                # repackage solution into a fit_result
-                prefix = 'm' + str(ind) + '_'
-                if self.model_name == 'gaussian_and_exp':
-                    if vary:
-                        parameters = [prefix + 'a', prefix + 'b', prefix + 'c',
-                                      prefix + 'd', prefix + 'f']
-                    else:
-                        parameters = [prefix + 'a', 'b', prefix + 'c',
-                                      prefix + 'd', prefix + 'f']
-                popt = [result.params[p].value for p in parameters]
-                pcov = np.zeros((len(parameters), len(parameters)))
-                # only fill the diagonal elements (don't care about the rest for now)
-                for ind, param in enumerate(parameters):
-                    # exit if covariance couldn't be calculated
-                    # this happens when peak centers converge on top of each other
-                    if result.params[param].stderr == 0:
-                        return None
-                    pcov[ind, ind] = result.params[param].stderr**2
-                fit_result = (popt, pcov)
-
-                # evaluate fits
-                phase_hist = new_fit_list[wavelength_index][3]
-                flag = self.__evaluateFit(phase_hist, fit_result, new_fit_list,
-                                          wavelength_index)
-                # exit if one of the fits fails any evaluation step
-                if flag != 0:
-                    return None
-                # replace old fit with simultaneous fit
-                new_fit_list[wavelength_index] = (flag, fit_result[0], fit_result[1],
-                                                  phase_hist)
-            if self.logging:
-                dt = round((datetime.now() - start_time).total_seconds(), 2)
-                dt = str(dt) + ' s'
-                if vary:
-                    message = "histograms refit to a single model enforcing monotonicity"
-                else:
-                    message = "histograms refit to a single model enforcing " + \
-                              "monotonicity with a constant exponential fall time"
-                self.__logger("({0}, {1}): {2} : {3}"
-                              .format(row, column, message, dt))
-            return new_fit_list
-
-        except Exception as error:
-            # do some error handeling
-            raise error
-            return None
-
-    def __histogramChi2(self, params, fit_list, fit_function, vary):
-        '''
-        Calculates the normalized chi squared residual for the simultaneous histogram fit
-        '''
-        p = params.valuesdict()
-
-        chi2 = np.array([])
-        for index, fit_result in enumerate(fit_list):
-            centers = fit_result[3]['centers']
-            counts = fit_result[3]['counts']
-            error = np.sqrt(counts + 0.25) + 0.5
-            if self.model_name == 'gaussian_and_exp':
-                prefix = 'm' + str(index) + '_'
-                if vary:
-                    b = p[prefix + 'b']
-                else:
-                    b = p['b']
-                fit = fit_function(centers, p[prefix + 'a'], b, p[prefix + 'c'],
-                                   p[prefix + 'd'], p[prefix + 'f'])
-
-                nu_free = np.max([len(counts) - 5, 1])
-            chi2 = np.append(chi2, ((counts - fit) / error) / np.sqrt(nu_free))
-        return chi2
 
     def __fitEnergy(self, fit_type, phases, energies, errors, row, column):
         '''
