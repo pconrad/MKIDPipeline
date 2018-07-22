@@ -16,8 +16,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable, axes_size
 from DarknessPipeline.Headers import pipelineFlags
 
 
-def plotEnergySolution(file_name, res_id=None, pixel=[], axis=None):
-    '''
+def plotEnergySolution(file_name, res_id=None, pixel=(), axis=None):
+    """
     Plot the phase to energy solution for a pixel from the wavlength calibration solution
     file 'file_name'. Provide either the pixel location pixel=(row, column) or the res_id
     for the resonator.
@@ -30,7 +30,7 @@ def plotEnergySolution(file_name, res_id=None, pixel=[], axis=None):
                instead. (length 2 list of integers)
         axis: matplotlib axis object on which to display the plot. If no axis is provided
               a new figure will be made.
-    '''
+    """
     # load file_name
     wave_cal = tb.open_file(file_name, mode='r')
     wavelengths = wave_cal.root.header.wavelengths.read()[0]
@@ -923,7 +923,7 @@ def plotSummary(file_name, config_name='', save_name=None, verbose=True):
 
 
 def loadFrequencyFile(config_file, verbose=True):
-    '''
+    """
     Returns a dictionary mapping res_id to resonance frequency for a particular templar
     configuration file.
 
@@ -936,7 +936,7 @@ def loadFrequencyFile(config_file, verbose=True):
         a numpy array of the frequency files that could be loaded from the templar config
         file vertically stacked. The first column is the res_id and the second is the
         frequency. a 1 by 2 array with -1 entries is returned if no files could be loaded.
-    '''
+    """
     config = ConfigParser()
     config.read(config_file)
     freqs = []
@@ -960,9 +960,9 @@ def loadFrequencyFile(config_file, verbose=True):
 
 
 def fitModels(model_name):
-    '''
+    """
     Returns the specified fit model from a library of possible functions
-    '''
+    """
     def gaussian_and_exp(x, a, b, c, d, f, y=None, error=None, return_coefficients=False):
         if y is None or error is None:
             return a * np.exp(b * x) + c * np.exp(-1 / 2.0 * ((x - d) / f)**2)
